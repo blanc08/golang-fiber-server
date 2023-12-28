@@ -1,0 +1,11 @@
+{
+    "sqltools.connections": [
+        {
+            "previewLimit": 50,
+            "server": "localhost",
+            "driver": "PostgreSQL",
+            "name": "[local] stok gas",
+            "connectString": "postgresql://superuserdev:superuserdevpassword@localhost:5432/stok_gas"
+        }
+    ]
+}
