@@ -75,7 +75,7 @@ func (server *Server) register(ctx *fiber.Ctx) error {
 	}
 
 	response := newUserResponse(user)
-	return ctx.Status(204).JSON(response)
+	return ctx.Status(201).JSON(response)
 
 }
 
