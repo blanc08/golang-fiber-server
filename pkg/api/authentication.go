@@ -16,7 +16,7 @@ type (
 	RegisterRequest struct {
 		FirstName string `json:"firstName" validate:"required"`
 		LastName  string `json:"lastName" validate:"required"`
-		Email     string `json:"email" validate:"required"`
+		Email     string `json:"email" validate:"required,email"`
 		Password  string `json:"password" validate:"required,,min=6"`
 	}
 
@@ -27,7 +27,7 @@ type (
 	}
 
 	LoginRequest struct {
-		Email    string `json:"email" validate:"required,alphanum"`
+		Email    string `json:"email" validate:"required,email"`
 		Password string `json:"password" validate:"required,min=6"`
 	}
 
@@ -56,6 +56,13 @@ func (server *Server) register(ctx *fiber.Ctx) error {
 		return fiber.ErrUnprocessableEntity
 	}
 
+	if err := server.validator.Validate(request); err != nil {
+		return ctx.JSON(fiber.Map{
+			"message": "bad request",
+			"details": err,
+		})
+	}
+
 	hashdPassword, err := util.HashPassword(request.Password)
 	if err != nil {
 		return fiber.NewError(http.StatusInternalServerError, err.Error())
@@ -81,12 +88,19 @@ func (server *Server) register(ctx *fiber.Ctx) error {
 
 func (server *Server) login(ctx *fiber.Ctx) error {
 
-	var req LoginRequest
-	if err := ctx.BodyParser(&req); err != nil {
+	var request LoginRequest
+	if err := ctx.BodyParser(&request); err != nil {
 		return fiber.ErrBadRequest
 	}
 
-	user, err := server.store.GetUser(ctx.Context(), req.Email)
+	if err := server.validator.Validate(request); err != nil {
+		return ctx.JSON(fiber.Map{
+			"message": "bad request",
+			"details": err,
+		})
+	}
+
+	user, err := server.store.GetUser(ctx.Context(), request.Email)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return fiber.NewError(401, "invalid credentials")
@@ -95,10 +109,8 @@ func (server *Server) login(ctx *fiber.Ctx) error {
 		return fiber.NewError(500, err.Error())
 	}
 
-	err = util.CheckPassword(req.Password, user.Password)
+	err = util.CheckPassword(request.Password, user.Password)
 	if err != nil {
-		// ctx.JSON(http.StatusUnauthorized, errorResponse(err))
-		// return
 		return fiber.ErrInternalServerError
 	}
 
@@ -107,8 +119,6 @@ func (server *Server) login(ctx *fiber.Ctx) error {
 		server.config.AccessTokenDuration,
 	)
 	if err != nil {
-		// ctx.JSON(http.StatusInternalServerError, errorResponse(err))
-		// return
 		return fiber.ErrInternalServerError
 	}
 
@@ -117,8 +127,6 @@ func (server *Server) login(ctx *fiber.Ctx) error {
 		server.config.RefreshTokenDuration,
 	)
 	if err != nil {
-		// ctx.JSON(http.StatusInternalServerError, errorResponse(err))
-		// return
 		return fiber.ErrInternalServerError
 	}
 

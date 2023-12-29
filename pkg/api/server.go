@@ -15,6 +15,7 @@ type Server struct {
 	store      database.Store
 	tokenMaker token.Maker
 	app        *fiber.App
+	validator  util.XValidator
 }
 
 func NewServer(config util.Config, store database.Store) (*Server, error) {
@@ -27,6 +28,7 @@ func NewServer(config util.Config, store database.Store) (*Server, error) {
 		config:     config,
 		store:      store,
 		tokenMaker: tokenMaker,
+		validator:  *util.NewValidator(),
 	}
 
 	server.setupApp()
@@ -34,18 +36,15 @@ func NewServer(config util.Config, store database.Store) (*Server, error) {
 }
 
 func (server *Server) setupApp() {
-	// Validator || initialize
-	// myValidator := util.NewValidator()
-
 	app := fiber.New(
-	// fiber.Config{
-	// ErrorHandler: func(c *fiber.Ctx, err error) error {
-	// 	return c.Status(fiber.StatusBadRequest).JSON(util.GlobalErrorHandlerResp{
-	// 		Success: false,
-	// 		Message: err.Error(),
-	// 	})
-	// },
-	// }
+		fiber.Config{
+			ErrorHandler: func(c *fiber.Ctx, err error) error {
+				return c.Status(fiber.StatusBadRequest).JSON(util.GlobalErrorHandlerResp{
+					Success: false,
+					Message: err.Error(),
+				})
+			},
+		},
 	)
 
 	app.Get("/", func(c *fiber.Ctx) error {
