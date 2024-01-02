@@ -3,7 +3,7 @@ package api
 import (
 	"fmt"
 
-	database "github.com/blanc08/stok-gas-management-backend/database/sqlc"
+	database "github.com/blanc08/stok-gas-management-backend/pkg/database/sqlc"
 	"github.com/blanc08/stok-gas-management-backend/pkg/token"
 	"github.com/blanc08/stok-gas-management-backend/pkg/util"
 	"github.com/gofiber/fiber/v2"

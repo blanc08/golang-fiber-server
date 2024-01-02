@@ -4,8 +4,8 @@ import (
 	"context"
 	"log"
 
-	database "github.com/blanc08/stok-gas-management-backend/database/sqlc"
 	"github.com/blanc08/stok-gas-management-backend/pkg/api"
+	database "github.com/blanc08/stok-gas-management-backend/pkg/database/sqlc"
 	"github.com/blanc08/stok-gas-management-backend/pkg/util"
 
 	"github.com/jackc/pgx/v5"

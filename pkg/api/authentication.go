@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	database "github.com/blanc08/stok-gas-management-backend/database/sqlc"
+	database "github.com/blanc08/stok-gas-management-backend/pkg/database/sqlc"
 	"github.com/blanc08/stok-gas-management-backend/pkg/util"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
