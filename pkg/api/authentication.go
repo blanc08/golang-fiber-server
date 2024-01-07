@@ -75,7 +75,7 @@ func (server *Server) register(ctx *fiber.Ctx) error {
 		Password:  hashdPassword,
 	}
 
-	user, err := server.store.CreateUser(ctx.Context(), args)
+	user, err := server.store.CreateUser(ctx.Context(), server.pool, args)
 	if err != nil {
 		fmt.Println("error while creating user : ", err)
 		return fiber.NewError(500, err.Error())
@@ -93,14 +93,14 @@ func (server *Server) login(ctx *fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
-	if err := server.validator.Validate(request); err != nil {
+	if errs := server.validator.Validate(request); len(errs) > 0 {
 		return ctx.JSON(fiber.Map{
 			"message": "bad request",
-			"details": err,
+			"details": errs,
 		})
 	}
 
-	user, err := server.store.GetUser(ctx.Context(), request.Email)
+	user, err := server.store.GetUser(ctx.Context(), server.pool, request.Email)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return fiber.NewError(401, "invalid credentials")
@@ -114,15 +114,15 @@ func (server *Server) login(ctx *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	accessToken, accessPayload, err := server.tokenMaker.CreateToken(
+	accessToken, accessTokenPayload, err := server.tokenMaker.CreateToken(
 		user.Email,
 		server.config.AccessTokenDuration,
 	)
 	if err != nil {
-		return fiber.ErrInternalServerError
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	refreshToken, refreshPayload, err := server.tokenMaker.CreateToken(
+	refreshToken, refreshTokenPayload, err := server.tokenMaker.CreateToken(
 		user.Email,
 		server.config.RefreshTokenDuration,
 	)
@@ -130,28 +130,34 @@ func (server *Server) login(ctx *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	// session, err := server.store.CreateSession(ctx, db.CreateSessionParams{
-	// 	ID:           refreshPayload.ID,
-	// 	Username:     user.Username,
-	// 	RefreshToken: refreshToken,
-	// 	UserAgent:    ctx.Request.UserAgent(),
-	// 	ClientIp:     ctx.ClientIP(),
-	// 	IsBlocked:    false,
-	// 	ExpiredAt:    refreshPayload.ExpiredAt,
-	// })
-	// if err != nil {
-	// 	ctx.JSON(http.StatusInternalServerError, errorResponse(err))
-	// 	return
-	// }
+	_, err = server.store.CreateSession(ctx.Context(), server.pool, database.CreateSessionParams{
+		ID:           refreshTokenPayload.Jti,
+		Email:        user.Email,
+		RefreshToken: refreshToken,
+		UserAgent:    string(ctx.Context().Request.Header.UserAgent()),
+		ClientIp:     ctx.Context().RemoteIP().String(),
+		IsBlocked:    false,
+		ExpiredAt:    refreshTokenPayload.ExpiredAt,
+	})
+	if err != nil {
+		return fiber.ErrInternalServerError
+	}
 
 	response := LoginResponse{
-		// SessionID:             session.ID,
+		SessionID:             refreshTokenPayload.Jti,
 		AccessToken:           accessToken,
-		AccessTokenExpiresAt:  accessPayload.ExpiredAt,
+		AccessTokenExpiresAt:  accessTokenPayload.ExpiredAt,
 		RefreshToken:          refreshToken,
-		RefreshTokenExpiresAt: refreshPayload.ExpiredAt,
+		RefreshTokenExpiresAt: refreshTokenPayload.ExpiredAt,
 		User:                  newUserResponse(user),
 	}
+
+	authorizationCookie := new(fiber.Cookie)
+	authorizationCookie.Name = "Authorization"
+	authorizationCookie.Value = "Bearer " + accessToken
+	authorizationCookie.Expires = accessTokenPayload.ExpiredAt
+
+	ctx.Cookie(authorizationCookie)
 
 	return ctx.Status(http.StatusOK).JSON(response)
 }

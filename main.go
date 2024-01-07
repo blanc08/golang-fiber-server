@@ -8,8 +8,9 @@ import (
 	database "github.com/blanc08/stok-gas-management-backend/pkg/database/sqlc"
 	"github.com/blanc08/stok-gas-management-backend/pkg/util"
 
+	pgxuuid "github.com/jackc/pgx-gofrs-uuid"
 	"github.com/jackc/pgx/v5"
-	_ "github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
@@ -20,16 +21,34 @@ func main() {
 	}
 
 	// Database
-	ctx := context.Background()
-	conn, err := pgx.Connect(ctx, config.DBSource)
+	pgxConfig, err := pgxpool.ParseConfig(config.DBSource)
 	if err != nil {
 		log.Fatal("Cannot connect to the database", err)
 	}
-	defer conn.Close(ctx)
 
-	store := database.NewStore(conn)
+	pgxConfig.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		// do something with every new connection
+		pgxuuid.Register(conn.TypeMap())
+		return nil
+	}
 
-	restApiServer, err := api.NewServer(config, store)
+	pool, err := pgxpool.NewWithConfig(context.Background(), pgxConfig)
+	if err != nil {
+		log.Fatal("Cannot connect to the database", err)
+	}
+
+	defer pool.Close()
+
+	// ctx := context.Background()
+	// conn, err := pgx.Connect(ctx, config.DBSource)
+	// if err != nil {
+	// 	log.Fatal("Cannot connect to the database", err)
+	// }
+	// defer conn.Close(ctx)
+
+	store := database.NewStore()
+
+	restApiServer, err := api.NewServer(config, store, pool)
 	if err != nil {
 		log.Fatal("cannot create the server :", err)
 	}

@@ -5,65 +5,98 @@ import (
 	"time"
 
 	"aidanwoods.dev/go-paseto"
-	"golang.org/x/crypto/chacha20poly1305"
+	"github.com/google/uuid"
 )
 
 type PasetoMaker struct {
-	paseto                paseto.Token
-	v4AsymmetricSecretKey paseto.V4AsymmetricSecretKey
+	paseto               paseto.Token
+	v4SymmetricSecretKey paseto.V4SymmetricKey
 }
 
-func NewPasetoMaker(v4AsymmetricSecretKeyHex string) (Maker, error) {
-	if len(v4AsymmetricSecretKeyHex) != 128 {
-		return nil, fmt.Errorf("invalid symmetric key : must be exactly %d character", chacha20poly1305.KeySize)
+func NewPasetoMaker(v4SymmetricSecretKeyHex string) (Maker, error) {
+	if len(v4SymmetricSecretKeyHex) != 64 {
+		return nil, fmt.Errorf("invalid symmetric key : must be exactly %d character", 64)
 	}
 
-	v4AsymmetricSecretKey, err := paseto.NewV4AsymmetricSecretKeyFromHex(v4AsymmetricSecretKeyHex)
+	v4SymmetricSecretKey, err := paseto.V4SymmetricKeyFromHex(v4SymmetricSecretKeyHex)
 	if err != nil {
 		return nil, err
 	}
 
 	maker := &PasetoMaker{
-		paseto:                paseto.NewToken(),
-		v4AsymmetricSecretKey: v4AsymmetricSecretKey,
+		paseto:               paseto.NewToken(),
+		v4SymmetricSecretKey: v4SymmetricSecretKey,
 	}
 
 	return maker, nil
 }
 
-func (maker *PasetoMaker) CreateToken(username string, duration time.Duration) (string, *Payload, error) {
-	payload, err := NewPayload(username, duration)
+func (maker *PasetoMaker) CreateToken(email string, duration time.Duration) (string, *Payload, error) {
+	payload, err := NewPayload(email, duration)
 	if err != nil {
-		return "", payload, err
+		return "", nil, err
 	}
 
-	maker.paseto.SetJti(payload.ID.String()) // tokenID
+	fmt.Println("Login -- Expired at : ", payload.ExpiredAt)
+	maker.paseto.SetJti(payload.Jti.String()) // tokenID
 	maker.paseto.SetExpiration(payload.ExpiredAt)
 	maker.paseto.SetIssuedAt(payload.IssuedAt)
-	maker.paseto.SetString("userID", username)
+	maker.paseto.SetIssuer(payload.Issuer)
 
-	return maker.paseto.V4Sign(maker.v4AsymmetricSecretKey, nil), payload, nil
-
+	return maker.paseto.V4Encrypt(maker.v4SymmetricSecretKey, nil), payload, nil
 }
 
-func (maker *PasetoMaker) VerifyToken(tokenString string, v4AsymmetricPublicKeyHex string) (*Payload, error) {
-	payload := &Payload{}
-	publicKey, err := paseto.NewV4AsymmetricPublicKeyFromHex(v4AsymmetricPublicKeyHex)
-
+func (maker *PasetoMaker) VerifyToken(tokenString string) (*Payload, error) {
 	parser := paseto.NewParser()
+
 	var token *paseto.Token
-	token, err = parser.ParseV4Public(publicKey, tokenString, nil)
+	token, err := parser.ParseV4Local(maker.v4SymmetricSecretKey, tokenString, nil)
 	if err != nil {
-		fmt.Println(ErrInvalidToken, err)
+		fmt.Println("parse token : ", err.Error())
 		return nil, ErrInvalidToken
+	}
+
+	jti, err := token.GetJti()
+	if err != nil {
+		fmt.Println("Jti : ", err.Error())
+		return nil, ErrInvalidToken
+	}
+
+	issuer, err := token.GetIssuer()
+	if err != nil {
+		fmt.Println("Issuer : ", err.Error())
+		return nil, ErrInvalidToken
+	}
+
+	expiredAt, err := token.GetExpiration()
+	if err != nil {
+		fmt.Println("Expired at : ", err.Error())
+		return nil, ErrInvalidToken
+	}
+
+	issuedAt, err := token.GetIssuedAt()
+	if err != nil {
+		fmt.Println("Issued at : ", err.Error())
+		return nil, ErrInvalidToken
+	}
+
+	uuid, err := uuid.Parse(jti)
+	if err != nil {
+		fmt.Println("UUID : ", err.Error())
+		return nil, ErrInvalidToken
+	}
+
+	payload := &Payload{
+		Jti:       uuid,
+		Issuer:    issuer,
+		IssuedAt:  issuedAt,
+		ExpiredAt: expiredAt,
 	}
 
 	err = payload.Valid()
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Println(token.Claims())
 
 	return payload, nil
 }

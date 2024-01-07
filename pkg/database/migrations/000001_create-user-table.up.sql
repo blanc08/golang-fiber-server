@@ -5,7 +5,7 @@ CREATE TABLE "users" (
     "email" varchar NOT NULL,
     "password" text NOT NULL,
     "isActive" boolean NOT NULL DEFAULT false,
-    "created_at" timestamp  with time zone NOT NULL DEFAULT 'now()',
-    "updated_at" timestamp  with time zone NOT NULL DEFAULT 'now()'
+    "created_at" timestamp with time zone NOT NULL DEFAULT 'now()',
+    "updated_at" timestamp with time zone NOT NULL DEFAULT 'now()'
 );
 CREATE UNIQUE INDEX ON "users" ("email");

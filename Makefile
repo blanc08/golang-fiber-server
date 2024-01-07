@@ -10,16 +10,16 @@ dropdb:
 	docker exec -it postgres12 dropdb simple_bank
 
 migrateup:
-	migrate -path database/migrations -database "$(DB_URL)" -verbose up
+	migrate -path pkg/database/migrations -database "$(DB_URL)" -verbose up
 
 migrateup1:
-	migrate -path database/migrations -database "$(DB_URL)" -verbose up 1
+	migrate -path pkg/database/migrations -database "$(DB_URL)" -verbose up 1
 
 migratedown:
-	migrate -path database/migrations -database "$(DB_URL)" -verbose down
+	migrate -path pkg/database/migrations -database "$(DB_URL)" -verbose down
 
 migratedown1:
-	migrate -path database/migrations -database "$(DB_URL)" -verbose down 1
+	migrate -path pkg/database/migrations -database "$(DB_URL)" -verbose down 1
 
 sqlc:
 	sqlc generate
@@ -31,7 +31,7 @@ server:
 	go run main.go
 
 mock:
-	mockgen -package mockdb -destination database/mock/store.go github.com/blanc08/go-simple-bank/database/sqlc Store
+	mockgen -package mockdb -destination pkg/database/mock/store.go github.com/blanc08/go-simple-bank/pkg/database/sqlc Store
 
 proto: 
 	rm -f pb/*.go

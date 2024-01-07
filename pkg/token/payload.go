@@ -8,8 +8,8 @@ import (
 )
 
 type Payload struct {
-	ID        uuid.UUID `json:"id"`
-	Username  string    `json:"username"`
+	Jti       uuid.UUID `json:"jti"`
+	Issuer    string    `json:"issuer"`
 	IssuedAt  time.Time `json:"issued_at"`
 	ExpiredAt time.Time `json:"expired_at"`
 }
@@ -26,8 +26,8 @@ func NewPayload(username string, duration time.Duration) (*Payload, error) {
 	}
 
 	payload := &Payload{
-		ID:        tokenID,
-		Username:  username,
+		Jti:       tokenID,
+		Issuer:    username,
 		IssuedAt:  time.Now(),
 		ExpiredAt: time.Now().Add(duration),
 	}
