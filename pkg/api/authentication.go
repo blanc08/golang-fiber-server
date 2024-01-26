@@ -17,7 +17,7 @@ type (
 		FirstName string `json:"firstName" validate:"required"`
 		LastName  string `json:"lastName" validate:"required"`
 		Email     string `json:"email" validate:"required,email"`
-		Password  string `json:"password" validate:"required,,min=6"`
+		Password  string `json:"password" validate:"required,min=6"`
 	}
 
 	UserResponse struct {
@@ -56,7 +56,7 @@ func (server *Server) register(ctx *fiber.Ctx) error {
 		return fiber.ErrUnprocessableEntity
 	}
 
-	if err := server.validator.Validate(request); err != nil {
+	if err := server.validator.Validate(request); len(err) != 0 {
 		return ctx.JSON(fiber.Map{
 			"message": "bad request",
 			"details": err,
@@ -77,7 +77,7 @@ func (server *Server) register(ctx *fiber.Ctx) error {
 
 	user, err := server.store.CreateUser(ctx.Context(), server.pool, args)
 	if err != nil {
-		fmt.Println("error while creating user : ", err)
+		fmt.Println("error while creating user : ", err.Error())
 		return fiber.NewError(500, err.Error())
 	}
 
